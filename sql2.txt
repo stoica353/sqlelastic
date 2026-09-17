@@ -1,0 +1,9 @@
+FROM rhel-auth-*
+| WHERE process.pid IS NOT NULL AND ssh.kex_algorithm IS NOT NULL OR ssh.userauth.method IS NOT NULL OR system.auth.ssh.event IS NOT NULL OR ssh.client_ip IS NOT NULL
+| EVAL ip_sursa = COALESCE(source.ip, ssh.client_ip), utilizator = COALESCE(user.name, ssh.userauth.user)
+| STATS ora = MIN(@timestamp), user = VALUES(utilizator), ip = VALUES(ip_sursa), kex = VALUES(ssh.kex_algorithm), host_key = VALUES(ssh.hostkey_algorithm), cipher_c2s = VALUES(ssh.cipher_c2s), userauth = VALUES(ssh.userauth.method), rezultat = VALUES(system.auth.ssh.event) BY host.name, process.pid, zi = BUCKET(@timestamp, 1 day)
+| WHERE kex IS NOT NULL AND user IS NOT NULL
+| EVAL user = MV_CONCAT(user, ", "), userauth = MV_CONCAT(userauth, ", "), rezultat = MV_CONCAT(rezultat, ", ")
+| KEEP ora, host.name, user, ip, kex, host_key, cipher_c2s, userauth, rezultat
+| SORT ora DESC
+| LIMIT 1000
